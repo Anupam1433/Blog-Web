@@ -5,12 +5,20 @@ from django.core.paginator import Paginator, EmptyPage,\
     PageNotAnInteger
 from .forms import CommentForm
 from django.views.decorators.http import require_POST
+from taggit.models import Tag
+from django.db.models import Count
 
 # Create your views here.
 
 
-def post_list(request):
+def post_list(request, tag_slug=None):
     posts = Post.published.all()
+
+    tag = None
+    if tag_slug:
+         tag = get_object_or_404(Tag, slug=tag_slug)
+        #  post_list = post_list.filter(tags__in=[tag])
+         posts = posts.filter(tags__in=[tag])
 
     # Pagination with 3 posts per page
     paginator = Paginator(posts, 3)
@@ -27,7 +35,8 @@ def post_list(request):
 
     return render(request,
                   'blog/post/list.html',
-                  {'posts': posts})
+                  {'posts': posts,
+                   'tag': tag})
 
 
 def post_detail(request, year, month, day, post):
@@ -45,12 +54,20 @@ def post_detail(request, year, month, day, post):
     # List of active comments for this post
     comments = post.comments.filter(active=True)
     # Form for users to comment
-    form = CommentForm()     
+    form = CommentForm()
+
+    # List of similar posts
+    post_tags_ids = post.tags.values_list('id', flat=True)
+    similar_posts = Post.published.filter(tags__in=post_tags_ids)\
+                                  .exclude(id=post.id)
+    similar_posts = similar_posts.annotate(same_tags=Count('tags'))\
+                                 .order_by('-same_tags','-publish')[:4]     
                         
     return render(request,
                   'blog/post/detail.html',
                   {'post': post, 'comments': comments,
-                   'form': form})
+                   'form': form,
+                   'similar_posts': similar_posts})
 
 
 @require_POST
