@@ -2,7 +2,7 @@ from django import template
 from ..models import Post
 from django.db.models import Count
 from django.utils.safestring import mark_safe
-import Markdown
+import markdown
 
 register = template.Library()
 @register.simple_tag
